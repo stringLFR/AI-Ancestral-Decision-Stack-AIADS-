@@ -65,10 +65,7 @@ public class AIADS_Core : MonoBehaviour
 
         int current = currentLoop;
 
-        if (maxLoops > currentLoop)
-        {
-            GetDecision(myStack.currentDecision, maxLoops, current++);
-        }
+        if (maxLoops > currentLoop) GetDecision(myStack.currentDecision, maxLoops, current++);
         else
         {
             decision.DoDecision(myStack.Blackboards[decision.BlackboardKey], this);
@@ -147,13 +144,13 @@ public abstract class AIADS_Decision
 
     float decideDelay = 0f;
 
-    public AIADS_Decision(string k, string b, string[] c, float s, float d)
+    public AIADS_Decision(string keyValue, string blackboardValue, string[] childDecisinValues, float minimumScoreValue, float decideDelayValue)
     {
-        key = k;
-        blackboardKey = b;
-        childDecisionsKeys = c;
-        minimumScore = s;
-        decideDelay = d;
+        key = keyValue;
+        blackboardKey = blackboardValue;
+        childDecisionsKeys = childDecisinValues;
+        minimumScore = minimumScoreValue;
+        decideDelay = decideDelayValue;
     }
 
     public string Key => key;
