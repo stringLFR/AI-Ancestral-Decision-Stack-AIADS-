@@ -14,22 +14,29 @@ public interface IAIADS_Blackboard_Creator
 
 public class AIADS_Core : MonoBehaviour
 {
-    [SerializeField] float updateTickRate = 1f;
+    [SerializeField] float updateTickRateInSeconds = 1f, maxDecideDelay = 1f;
+
+    [Header("AIADS_Decision_Root_Stats")]
+    [SerializeField] string keyValue, blackboardKeyValue;
+    [SerializeField] string[] childDecisionsKeyValues;
+    [SerializeField] float minimumScoreValue, decideDelayValue;
 
     AIADS_Stack myStack = new AIADS_Stack();
 
-    //Make sure to assign a root decision!
-    //A root decision do not need to have anything special with it, just store childDecisionsKeys in it!
     AIADS_Decision root;
 
     Coroutine loop;
 
     WaitForSeconds updateTick;
-    WaitForSeconds decideTick;
+
+    protected virtual void Awake()
+    {
+        root = new AIADS_Root(keyValue, blackboardKeyValue, childDecisionsKeyValues, minimumScoreValue, decideDelayValue);
+    }
 
     protected virtual void Start()
     {
-        updateTick = new WaitForSeconds(updateTickRate);
+        updateTick = new WaitForSeconds(updateTickRateInSeconds);
         UpdateCorutine();
     }
 
@@ -47,32 +54,25 @@ public class AIADS_Core : MonoBehaviour
 
         if (myStack.currentDecision != null)
         {
-            int loops = 0;
-
-            while(loops < myStack.count)
+            float time = 0f;
+            
+            while(time < maxDecideDelay)
             {
-                decideTick = new WaitForSeconds(GetDecision(myStack.currentDecision, loops, 0));
-                loops++;
+                GetDecision(myStack.currentDecision, myStack.count, time);
+                time += Time.deltaTime;
             }
         }
 
         yield return updateTick;
     }
 
-    float GetDecision(AIADS_Decision decision, int maxLoops, int currentLoop)
+    void GetDecision(AIADS_Decision decision, int currentCount, float time)
     {
-        if (decision == root || decision == null) return 0f;
+        if (decision == root || decision == null || currentCount <= 0) return;
 
-        int current = currentLoop;
+        if (time >= decision.DecideDelay) decision.DoDecision(myStack.Blackboards[decision.BlackboardKey], this);
 
-        if (maxLoops > currentLoop) GetDecision(myStack.currentDecision, maxLoops, current++);
-        else
-        {
-            decision.DoDecision(myStack.Blackboards[decision.BlackboardKey], this);
-            return decision.DecideDelay;
-        }
-
-        return 0f;
+        GetDecision(myStack.currentDecision, currentCount--, time);
     }
 
     void GetDecisionScore()
@@ -144,11 +144,11 @@ public abstract class AIADS_Decision
 
     float decideDelay = 0f;
 
-    public AIADS_Decision(string keyValue, string blackboardValue, string[] childDecisinValues, float minimumScoreValue, float decideDelayValue)
+    public AIADS_Decision(string keyValue, string blackboardValue, string[] childDecisionValues, float minimumScoreValue, float decideDelayValue)
     {
         key = keyValue;
         blackboardKey = blackboardValue;
-        childDecisionsKeys = childDecisinValues;
+        childDecisionsKeys = childDecisionValues;
         minimumScore = minimumScoreValue;
         decideDelay = decideDelayValue;
     }
@@ -168,6 +168,23 @@ public abstract class AIADS_Decision
     public abstract float GetCondition(AIADS_Blackboard board, AIADS_Core core);
 
     public abstract void DoDecision(AIADS_Blackboard board, AIADS_Core core);
+}
+
+public class AIADS_Root : AIADS_Decision
+{
+    public AIADS_Root(string keyValue, string blackboardValue, string[] childDecisionValues, float minimumScoreValue, float decideDelayValue) : base(keyValue, blackboardValue, childDecisionValues, minimumScoreValue, decideDelayValue)
+    {
+    }
+
+    public override void DoDecision(AIADS_Blackboard board, AIADS_Core core)
+    {
+        throw new System.NotImplementedException();
+    }
+
+    public override float GetCondition(AIADS_Blackboard board, AIADS_Core core)
+    {
+        throw new System.NotImplementedException();
+    }
 }
 
 public abstract class AIADS_Blackboard
