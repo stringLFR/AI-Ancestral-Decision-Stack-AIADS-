@@ -1,29 +1,81 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using System.Linq;
 
-public interface IAIADS_Creator
+public interface IAIADS_Decision_Creator
 {
-    public AIADS_Decision CreateAIADSDecision();
+    public AIADS_Decision CreateAIADSDecision(); 
+}
+
+public interface IAIADS_Blackboard_Creator
+{
     public AIADS_Blackboard CreateAIADSBlackboard();
 }
 
 public class AIADS_Core : MonoBehaviour
 {
+    [SerializeField] float updateTickRate = 1f;
+
     AIADS_Stack myStack = new AIADS_Stack();
 
     //Make sure to assign a root decision!
     //A root decision do not need to have anything special with it, just store childDecisionsKeys in it!
-    AIADS_Decision root; 
+    AIADS_Decision root;
+
+    Coroutine loop;
+
+    WaitForSeconds updateTick;
+    WaitForSeconds decideTick;
 
     protected virtual void Start()
     {
-
+        updateTick = new WaitForSeconds(updateTickRate);
+        UpdateCorutine();
     }
 
-    protected virtual void Update()
+    void UpdateCorutine()
     {
-        
+        if (root == null || myStack.currentDecision == null) return;
+
+        StopCoroutine(loop);
+        loop = StartCoroutine(UpdateLoop());
+    }
+
+    IEnumerator UpdateLoop()
+    {
+        GetDecisionScore();
+
+        if (myStack.currentDecision != null)
+        {
+            int loops = 0;
+
+            while(loops < myStack.count)
+            {
+                decideTick = new WaitForSeconds(GetDecision(myStack.currentDecision, loops, 0));
+                loops++;
+            }
+        }
+
+        yield return updateTick;
+    }
+
+    float GetDecision(AIADS_Decision decision, int maxLoops, int currentLoop)
+    {
+        if (decision == root || decision == null) return 0f;
+
+        int current = currentLoop;
+
+        if (maxLoops > currentLoop)
+        {
+            GetDecision(myStack.currentDecision, maxLoops, current++);
+        }
+        else
+        {
+            decision.DoDecision(myStack.Blackboards[decision.BlackboardKey], this);
+            return decision.DecideDelay;
+        }
+
+        return 0f;
     }
 
     void GetDecisionScore()
@@ -51,6 +103,7 @@ public class AIADS_Core : MonoBehaviour
                 {
                     myStack.Decisions[bestDecision].Parent = myStack.currentDecision == null ? root : myStack.currentDecision;
                     myStack.currentDecision = myStack.Decisions[bestDecision];
+                    myStack.count++;
 
                     if (myStack.currentDecision.ChildDecisionsKeys != null) GetDecisionScore();
 
@@ -66,6 +119,7 @@ public class AIADS_Core : MonoBehaviour
             if (myStack.currentDecision.MinumimScore > currentScore)
             {
                 myStack.currentDecision = myStack.currentDecision.Parent;
+                myStack.count--;
 
                 if (myStack.currentDecision != null || myStack.currentDecision != root) GetDecisionScore();
             }
@@ -79,6 +133,8 @@ public class AIADS_Stack
     public Dictionary<string, AIADS_Blackboard> Blackboards;
 
     public AIADS_Decision currentDecision;
+
+    public int count = 0;
 }
 
 public abstract class AIADS_Decision
@@ -89,12 +145,15 @@ public abstract class AIADS_Decision
 
     float minimumScore = 0f;
 
-    public AIADS_Decision(string k, string b, string[] c, float s)
+    float decideDelay = 0f;
+
+    public AIADS_Decision(string k, string b, string[] c, float s, float d)
     {
         key = k;
         blackboardKey = b;
         childDecisionsKeys = c;
         minimumScore = s;
+        decideDelay = d;
     }
 
     public string Key => key;
@@ -104,6 +163,8 @@ public abstract class AIADS_Decision
     public string[] ChildDecisionsKeys => childDecisionsKeys;
 
     public float MinumimScore => minimumScore;
+
+    public float DecideDelay => decideDelay;
 
     public AIADS_Decision Parent;
 
