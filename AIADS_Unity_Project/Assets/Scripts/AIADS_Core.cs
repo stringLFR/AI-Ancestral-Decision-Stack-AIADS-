@@ -70,9 +70,9 @@ public class AIADS_Core : MonoBehaviour
     {
         if (decision == root || decision == null || currentCount <= 0) return;
 
-        if (time >= decision.DecideDelay) decision.DoDecision(myStack.Blackboards[decision.BlackboardKey], this);
-
         GetDecision(myStack.currentDecision, currentCount--, time);
+
+        if (time >= decision.DecideDelay) decision.DoDecision(myStack.Blackboards[decision.BlackboardKey], this);
     }
 
     void GetDecisionScore()
