@@ -18,6 +18,8 @@ public interface IAIADS_Blackboard_Creator
 
 public class AIADS_Core : MonoBehaviour
 {
+    #region SerializeFields
+
     [SerializeField] protected float updateTickRateInSeconds = 1f;
     [SerializeField] protected float maxDecideDelay = 1f;
 
@@ -26,6 +28,8 @@ public class AIADS_Core : MonoBehaviour
     [SerializeField] protected string[] childDecisionsKeyValues;
     [SerializeField] protected float minimumScoreValue;
     [SerializeField] protected int decideDelayValue;
+
+    #endregion
 
     protected AIADS_Stack myStack = new AIADS_Stack();
     protected AIADS_Decision root;
@@ -60,7 +64,6 @@ public class AIADS_Core : MonoBehaviour
             {
                 GetDecision(myStack.currentDecision, myStack.count, time);
                 time += Time.deltaTime;
-                print(time);
                 yield return null;
             }
 
@@ -69,12 +72,17 @@ public class AIADS_Core : MonoBehaviour
 
         yield return updateTick;
     }
+
     public virtual void SwitchParentDecision(AIADS_Decision targetChildDecision, string newParentDecisionKey)
     {
         StopCoroutine(loop);
         targetChildDecision.Parent = myStack.Decisions[newParentDecisionKey];
         loop = StartCoroutine(UpdateLoop());
     }
+
+    public virtual void StopUpdateLoop() => StopCoroutine(loop);
+
+    public virtual void StartUpdateLoop() => loop = StartCoroutine(UpdateLoop());
 
     #region Insert/Remove_Mehtods
 
@@ -191,20 +199,15 @@ public class AIADS_Stack
 {
     public Dictionary<string, AIADS_Decision> Decisions;
     public Dictionary<string, AIADS_Blackboard> Blackboards;
-
     public AIADS_Decision currentDecision;
-
     public int count = 0;
 }
 
 public abstract class AIADS_Decision
 {
     string key, blackboardKey;
-
     string[] childDecisionsKeys;
-
     float minimumScore = 0f;
-
     float decideDelay = 0;
 
     public AIADS_Decision(string keyValue, string blackboardValue, string[] childDecisionValues, float minimumScoreValue, int decideDelayValue)
@@ -217,21 +220,14 @@ public abstract class AIADS_Decision
     }
 
     public string Key => key;
-
     public string BlackboardKey => blackboardKey;
-
     public string[] ChildDecisionsKeys => childDecisionsKeys;
-
     public float MinumimScore => minimumScore;
-
     public float DecideDelay => decideDelay;
-
     public AIADS_Decision Parent;
-
     public bool waitingForDecisionCall = true;
 
     public abstract float GetCondition(AIADS_Blackboard board, AIADS_Core core);
-
     public abstract void DoDecision(AIADS_Blackboard board, AIADS_Core core);
 }
 
@@ -241,23 +237,14 @@ public class AIADS_Root : AIADS_Decision
     {
     }
 
-    public override void DoDecision(AIADS_Blackboard board, AIADS_Core core)
-    {
-        throw new System.NotImplementedException();
-    }
-
-    public override float GetCondition(AIADS_Blackboard board, AIADS_Core core)
-    {
-        throw new System.NotImplementedException();
-    }
+    public override void DoDecision(AIADS_Blackboard board, AIADS_Core core) => throw new System.NotImplementedException();
+    public override float GetCondition(AIADS_Blackboard board, AIADS_Core core) => throw new System.NotImplementedException();
 }
 
 public abstract class AIADS_Blackboard
 {
     string key;
-
     public AIADS_Blackboard(string k) => key = k;
-
     public string Key => key;
 }
 
