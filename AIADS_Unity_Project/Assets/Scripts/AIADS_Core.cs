@@ -2,6 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+#region Inferfaces
+
 public interface IAIADS_Decision_Creator
 {
     public AIADS_Decision CreateAIADSDecision(); 
@@ -12,70 +14,88 @@ public interface IAIADS_Blackboard_Creator
     public AIADS_Blackboard CreateAIADSBlackboard();
 }
 
+#endregion
+
 public class AIADS_Core : MonoBehaviour
 {
-    [SerializeField] float updateTickRateInSeconds = 1f, maxDecideDelay = 1f;
+    [SerializeField] protected float updateTickRateInSeconds = 1f;
+    [SerializeField] protected float maxDecideDelay = 1f;
 
     [Header("AIADS_Decision_Root_Stats")]
-    [SerializeField] string keyValue, blackboardKeyValue;
-    [SerializeField] string[] childDecisionsKeyValues;
-    [SerializeField] float minimumScoreValue, decideDelayValue;
+    [SerializeField] protected string keyValue, blackboardKeyValue;
+    [SerializeField] protected string[] childDecisionsKeyValues;
+    [SerializeField] protected float minimumScoreValue;
+    [SerializeField] protected int decideDelayInMillisecondsValue;
 
-    AIADS_Stack myStack = new AIADS_Stack();
-
-    AIADS_Decision root;
-
-    Coroutine loop;
-
-    WaitForSeconds updateTick;
+    protected AIADS_Stack myStack = new AIADS_Stack();
+    protected AIADS_Decision root;
+    protected Coroutine loop;
+    protected WaitForSeconds updateTick;
 
     protected virtual void Awake()
     {
-        root = new AIADS_Root(keyValue, blackboardKeyValue, childDecisionsKeyValues, minimumScoreValue, decideDelayValue);
+        root = new AIADS_Root(keyValue, blackboardKeyValue, childDecisionsKeyValues, minimumScoreValue, decideDelayInMillisecondsValue);
     }
 
     protected virtual void Start()
     {
         updateTick = new WaitForSeconds(updateTickRateInSeconds);
-        UpdateCorutine();
-    }
 
-    void UpdateCorutine()
-    {
         if (root == null || myStack.currentDecision == null) return;
 
-        StopCoroutine(loop);
         loop = StartCoroutine(UpdateLoop());
     }
 
-    IEnumerator UpdateLoop()
+    #region MainUpdateLoop_And_AIADS_Stack_Manipulators
+
+    protected virtual IEnumerator UpdateLoop()
     {
         GetDecisionScore();
 
         if (myStack.currentDecision != null)
         {
-            float time = 0f;
+            float time = 0;
             
             while(time < maxDecideDelay)
             {
                 GetDecision(myStack.currentDecision, myStack.count, time);
                 time += Time.deltaTime;
+                yield return null;
             }
+
+            ResetDecisions(myStack.currentDecision, myStack.count);
         }
 
         yield return updateTick;
     }
 
-    void GetDecision(AIADS_Decision decision, int currentCount, float time)
+    #endregion
+
+    #region RecursiveMethods
+
+    protected virtual void ResetDecisions(AIADS_Decision decision, int currentCount)
     {
         if (decision == root || decision == null || currentCount <= 0) return;
 
-        GetDecision(myStack.currentDecision, currentCount--, time);
+        decision.waitingForDecisionCall = true;
 
-        if (time >= decision.DecideDelay) decision.DoDecision(myStack.Blackboards[decision.BlackboardKey], this);
+        ResetDecisions(decision.Parent, currentCount--);
     }
 
-    void GetDecisionScore()
+    protected virtual void GetDecision(AIADS_Decision decision, int currentCount, float time)
+    {
+        if (decision == root || decision == null || currentCount <= 0) return;
+
+        if (time >= decision.DecideDelay && decision.waitingForDecisionCall == true)
+        {
+            decision.waitingForDecisionCall = false;
+            decision.DoDecision(myStack.Blackboards[decision.BlackboardKey], this);
+        }
+
+        GetDecision(decision.Parent, currentCount--, time);
+    }
+
+    protected virtual void GetDecisionScore()
     {
         float bestScore = 0f;
         string bestDecision = null;
@@ -122,7 +142,11 @@ public class AIADS_Core : MonoBehaviour
             }
         }
     }
+
+    #endregion
 }
+
+#region OtherClasses
 
 public class AIADS_Stack
 {
@@ -142,9 +166,9 @@ public abstract class AIADS_Decision
 
     float minimumScore = 0f;
 
-    float decideDelay = 0f;
+    float decideDelay = 0;
 
-    public AIADS_Decision(string keyValue, string blackboardValue, string[] childDecisionValues, float minimumScoreValue, float decideDelayValue)
+    public AIADS_Decision(string keyValue, string blackboardValue, string[] childDecisionValues, float minimumScoreValue, int decideDelayValue)
     {
         key = keyValue;
         blackboardKey = blackboardValue;
@@ -165,6 +189,8 @@ public abstract class AIADS_Decision
 
     public AIADS_Decision Parent;
 
+    public bool waitingForDecisionCall = true;
+
     public abstract float GetCondition(AIADS_Blackboard board, AIADS_Core core);
 
     public abstract void DoDecision(AIADS_Blackboard board, AIADS_Core core);
@@ -172,7 +198,7 @@ public abstract class AIADS_Decision
 
 public class AIADS_Root : AIADS_Decision
 {
-    public AIADS_Root(string keyValue, string blackboardValue, string[] childDecisionValues, float minimumScoreValue, float decideDelayValue) : base(keyValue, blackboardValue, childDecisionValues, minimumScoreValue, decideDelayValue)
+    public AIADS_Root(string keyValue, string blackboardValue, string[] childDecisionValues, float minimumScoreValue, int decideDelayValue) : base(keyValue, blackboardValue, childDecisionValues, minimumScoreValue, decideDelayValue)
     {
     }
 
@@ -195,3 +221,5 @@ public abstract class AIADS_Blackboard
 
     public string Key => key;
 }
+
+#endregion
