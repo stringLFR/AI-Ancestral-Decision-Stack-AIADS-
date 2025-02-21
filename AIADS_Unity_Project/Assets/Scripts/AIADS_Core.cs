@@ -25,7 +25,7 @@ public class AIADS_Core : MonoBehaviour
     [SerializeField] protected string keyValue, blackboardKeyValue;
     [SerializeField] protected string[] childDecisionsKeyValues;
     [SerializeField] protected float minimumScoreValue;
-    [SerializeField] protected int decideDelayInMillisecondsValue;
+    [SerializeField] protected int decideDelayValue;
 
     protected AIADS_Stack myStack = new AIADS_Stack();
     protected AIADS_Decision root;
@@ -34,7 +34,7 @@ public class AIADS_Core : MonoBehaviour
 
     protected virtual void Awake()
     {
-        root = new AIADS_Root(keyValue, blackboardKeyValue, childDecisionsKeyValues, minimumScoreValue, decideDelayInMillisecondsValue);
+        root = new AIADS_Root(keyValue, blackboardKeyValue, childDecisionsKeyValues, minimumScoreValue, decideDelayValue);
     }
 
     protected virtual void Start()
@@ -60,6 +60,7 @@ public class AIADS_Core : MonoBehaviour
             {
                 GetDecision(myStack.currentDecision, myStack.count, time);
                 time += Time.deltaTime;
+                print(time);
                 yield return null;
             }
 
@@ -68,6 +69,44 @@ public class AIADS_Core : MonoBehaviour
 
         yield return updateTick;
     }
+    public virtual void SwitchParentDecision(AIADS_Decision targetChildDecision, string newParentDecisionKey)
+    {
+        StopCoroutine(loop);
+        targetChildDecision.Parent = myStack.Decisions[newParentDecisionKey];
+        loop = StartCoroutine(UpdateLoop());
+    }
+
+    #region Insert/Remove_Mehtods
+
+    public virtual void AIADSStackInsert(AIADS_Decision decision)
+    {
+        StopCoroutine(loop);
+        myStack.Decisions.Add(decision.Key, decision);
+        loop = StartCoroutine(UpdateLoop());
+    }
+
+    public virtual void AIADSStackInsert(AIADS_Blackboard board)
+    {
+        StopCoroutine(loop);
+        myStack.Blackboards.Add(board.Key, board);
+        loop = StartCoroutine(UpdateLoop());
+    }
+
+    public virtual void AIADSStackRemove(AIADS_Decision decision)
+    {
+        StopCoroutine(loop);
+        myStack.Decisions.Remove(decision.Key);
+        loop = StartCoroutine(UpdateLoop());
+    }
+
+    public virtual void AIADSStackRemove(AIADS_Blackboard board)
+    {
+        StopCoroutine(loop);
+        myStack.Blackboards.Remove(board.Key);
+        loop = StartCoroutine(UpdateLoop());
+    }
+
+    #endregion
 
     #endregion
 
