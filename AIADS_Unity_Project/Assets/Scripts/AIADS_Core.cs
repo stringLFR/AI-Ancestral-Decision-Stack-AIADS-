@@ -21,16 +21,16 @@ public class AIADS_Core : MonoBehaviour
 {
     #region SerializeFields
 
-    [Header("Update rate per second!")]
+    [SerializeField] protected AIADS_Decision_Reciver[] recivers;
+    [SerializeField] protected AIADS_Info_Gatherer[] gatherers;
     [SerializeField] protected float updateTickRateInSeconds = 1f;
-    [Header("Max alowed decide delay!")]
     [SerializeField] protected float maxDecideDelay = 1f;
 
     [Header("AIADS_Decision_Root_Stats")]
     [SerializeField] protected string keyValue, blackboardKeyValue;
     [SerializeField] protected string[] childDecisionsKeyValues;
     [SerializeField] protected float minimumScoreValue;
-    [SerializeField] protected int decideDelayValue,reciverIndexValue;
+    [SerializeField] protected int decideDelayValue,reciverIndexValue,gathererIndexValue;
 
     #endregion
 
@@ -41,7 +41,7 @@ public class AIADS_Core : MonoBehaviour
 
     protected virtual void Awake()
     {
-        root = new AIADS_Root(keyValue, blackboardKeyValue, childDecisionsKeyValues, minimumScoreValue, decideDelayValue, reciverIndexValue);
+        root = new AIADS_Root(keyValue, blackboardKeyValue, childDecisionsKeyValues, minimumScoreValue, decideDelayValue, reciverIndexValue, gathererIndexValue);
     }
 
     protected virtual void Start()
@@ -113,7 +113,6 @@ public class AIADS_Core : MonoBehaviour
     }
 
     #endregion
-
     #endregion
 
     #region RecursiveMethods
@@ -134,7 +133,7 @@ public class AIADS_Core : MonoBehaviour
         if (time >= decision.DecideDelay && decision.waitingForDecisionCall == true)
         {
             decision.waitingForDecisionCall = false;
-            decision.DoDecision(myStack.Blackboards[decision.BlackboardKey], this);
+            decision.DoDecision(myStack.Blackboards[decision.BlackboardKey], this, recivers[decision.ReciverIndex]);
         }
 
         GetDecision(decision.Parent, currentCount--, time);
@@ -150,7 +149,7 @@ public class AIADS_Core : MonoBehaviour
         {
             foreach (string decision in decisionArray)
             {
-                float score = myStack.Decisions[decision].GetCondition(myStack.Blackboards[myStack.Decisions[decision].BlackboardKey], this);
+                float score = myStack.Decisions[decision].GetCondition(myStack.Blackboards[myStack.Decisions[decision].BlackboardKey], this, gatherers[myStack.Decisions[decision].GathererIndex]);
 
                 if (score > bestScore)
                 {
@@ -176,7 +175,7 @@ public class AIADS_Core : MonoBehaviour
 
         if (myStack.currentDecision != null || myStack.currentDecision != root)
         {
-            float currentScore = myStack.currentDecision.GetCondition(myStack.Blackboards[myStack.currentDecision.BlackboardKey], this);
+            float currentScore = myStack.currentDecision.GetCondition(myStack.Blackboards[myStack.currentDecision.BlackboardKey], this, gatherers[myStack.currentDecision.GathererIndex]);
 
             if (myStack.currentDecision.MinumimScore > currentScore)
             {
@@ -208,8 +207,9 @@ public abstract class AIADS_Decision
     protected float minimumScore = 0f;
     protected float decideDelay = 0;
     protected int reciverIndex = 0;
+    protected int gathererIndex = 0;
 
-    public AIADS_Decision(string keyValue, string blackboardValue, string[] childDecisionValues, float minimumScoreValue, int decideDelayValue, int reciverIndexValue)
+    public AIADS_Decision(string keyValue, string blackboardValue, string[] childDecisionValues, float minimumScoreValue, int decideDelayValue, int reciverIndexValue, int gathererIndexValue)
     {
         key = keyValue;
         blackboardKey = blackboardValue;
@@ -217,6 +217,7 @@ public abstract class AIADS_Decision
         minimumScore = minimumScoreValue;
         decideDelay = decideDelayValue;
         reciverIndex = reciverIndexValue;
+        gathererIndex = gathererIndexValue;
     }
 
     public string Key => key;
@@ -225,21 +226,22 @@ public abstract class AIADS_Decision
     public float MinumimScore => minimumScore;
     public float DecideDelay => decideDelay;
     public int ReciverIndex => reciverIndex;
+    public int GathererIndex => gathererIndex;
     public AIADS_Decision Parent;
     public bool waitingForDecisionCall = true;
 
-    public abstract float GetCondition(AIADS_Blackboard board, AIADS_Core core);
-    public abstract void DoDecision(AIADS_Blackboard board, AIADS_Core core);
+    public abstract float GetCondition(AIADS_Blackboard board, AIADS_Core core, AIADS_Info_Gatherer info);
+    public abstract void DoDecision(AIADS_Blackboard board, AIADS_Core core, AIADS_Decision_Reciver reciver);
 }
 
 public class AIADS_Root : AIADS_Decision
 {
-    public AIADS_Root(string keyValue, string blackboardValue, string[] childDecisionValues, float minimumScoreValue, int decideDelayValue, int reciverIndexValue) : base(keyValue, blackboardValue, childDecisionValues, minimumScoreValue, decideDelayValue, reciverIndexValue)
+    public AIADS_Root(string keyValue, string blackboardValue, string[] childDecisionValues, float minimumScoreValue, int decideDelayValue, int reciverIndexValue, int gathererIndexValue) : base(keyValue, blackboardValue, childDecisionValues, minimumScoreValue, decideDelayValue, reciverIndexValue, gathererIndexValue)
     {
     }
 
-    public override void DoDecision(AIADS_Blackboard board, AIADS_Core core) => throw new System.NotImplementedException();
-    public override float GetCondition(AIADS_Blackboard board, AIADS_Core core) => throw new System.NotImplementedException();
+    public override void DoDecision(AIADS_Blackboard board, AIADS_Core core, AIADS_Decision_Reciver reciver) => throw new System.NotImplementedException();
+    public override float GetCondition(AIADS_Blackboard board, AIADS_Core core, AIADS_Info_Gatherer info) => throw new System.NotImplementedException();
 }
 
 public abstract class AIADS_Blackboard
