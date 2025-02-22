@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -20,14 +21,16 @@ public class AIADS_Core : MonoBehaviour
 {
     #region SerializeFields
 
+    [Header("Update rate per second!")]
     [SerializeField] protected float updateTickRateInSeconds = 1f;
+    [Header("Max alowed decide delay!")]
     [SerializeField] protected float maxDecideDelay = 1f;
 
     [Header("AIADS_Decision_Root_Stats")]
     [SerializeField] protected string keyValue, blackboardKeyValue;
     [SerializeField] protected string[] childDecisionsKeyValues;
     [SerializeField] protected float minimumScoreValue;
-    [SerializeField] protected int decideDelayValue;
+    [SerializeField] protected int decideDelayValue,reciverIndexValue;
 
     #endregion
 
@@ -38,7 +41,7 @@ public class AIADS_Core : MonoBehaviour
 
     protected virtual void Awake()
     {
-        root = new AIADS_Root(keyValue, blackboardKeyValue, childDecisionsKeyValues, minimumScoreValue, decideDelayValue);
+        root = new AIADS_Root(keyValue, blackboardKeyValue, childDecisionsKeyValues, minimumScoreValue, decideDelayValue, reciverIndexValue);
     }
 
     protected virtual void Start()
@@ -73,12 +76,7 @@ public class AIADS_Core : MonoBehaviour
         yield return updateTick;
     }
 
-    public virtual void SwitchParentDecision(AIADS_Decision targetChildDecision, string newParentDecisionKey)
-    {
-        StopCoroutine(loop);
-        targetChildDecision.Parent = myStack.Decisions[newParentDecisionKey];
-        loop = StartCoroutine(UpdateLoop());
-    }
+    public virtual void SwitchParentDecision(AIADS_Decision targetChildDecision, string newParentDecisionKey) => targetChildDecision.Parent = myStack.Decisions[newParentDecisionKey];
 
     public virtual void StopUpdateLoop() => StopCoroutine(loop);
 
@@ -205,18 +203,20 @@ public class AIADS_Stack
 
 public abstract class AIADS_Decision
 {
-    string key, blackboardKey;
-    string[] childDecisionsKeys;
-    float minimumScore = 0f;
-    float decideDelay = 0;
+    protected string key, blackboardKey;
+    protected string[] childDecisionsKeys;
+    protected float minimumScore = 0f;
+    protected float decideDelay = 0;
+    protected int reciverIndex = 0;
 
-    public AIADS_Decision(string keyValue, string blackboardValue, string[] childDecisionValues, float minimumScoreValue, int decideDelayValue)
+    public AIADS_Decision(string keyValue, string blackboardValue, string[] childDecisionValues, float minimumScoreValue, int decideDelayValue, int reciverIndexValue)
     {
         key = keyValue;
         blackboardKey = blackboardValue;
         childDecisionsKeys = childDecisionValues;
         minimumScore = minimumScoreValue;
         decideDelay = decideDelayValue;
+        reciverIndex = reciverIndexValue;
     }
 
     public string Key => key;
@@ -224,6 +224,7 @@ public abstract class AIADS_Decision
     public string[] ChildDecisionsKeys => childDecisionsKeys;
     public float MinumimScore => minimumScore;
     public float DecideDelay => decideDelay;
+    public int ReciverIndex => reciverIndex;
     public AIADS_Decision Parent;
     public bool waitingForDecisionCall = true;
 
@@ -233,7 +234,7 @@ public abstract class AIADS_Decision
 
 public class AIADS_Root : AIADS_Decision
 {
-    public AIADS_Root(string keyValue, string blackboardValue, string[] childDecisionValues, float minimumScoreValue, int decideDelayValue) : base(keyValue, blackboardValue, childDecisionValues, minimumScoreValue, decideDelayValue)
+    public AIADS_Root(string keyValue, string blackboardValue, string[] childDecisionValues, float minimumScoreValue, int decideDelayValue, int reciverIndexValue) : base(keyValue, blackboardValue, childDecisionValues, minimumScoreValue, decideDelayValue, reciverIndexValue)
     {
     }
 
