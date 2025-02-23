@@ -24,6 +24,7 @@ public class AIADS_Core : MonoBehaviour
     [SerializeField] protected AIADS_Decision_Reciver[] recivers;
     [SerializeField] protected AIADS_Info_Gatherer[] gatherers;
     [SerializeField] protected float updateTickRateInSeconds = 1f;
+    [SerializeField] protected float decisionTickRateInSeconds = 1f;
     [SerializeField] protected float maxDecideDelay = 1f;
 
     [Header("AIADS_Decision_Root_Stats")]
@@ -38,6 +39,7 @@ public class AIADS_Core : MonoBehaviour
     protected AIADS_Decision root;
     protected Coroutine loop;
     protected WaitForSeconds updateTick;
+    protected WaitForSeconds decisionTick;
 
     protected virtual void Awake()
     {
@@ -47,6 +49,7 @@ public class AIADS_Core : MonoBehaviour
     protected virtual void Start()
     {
         updateTick = new WaitForSeconds(updateTickRateInSeconds);
+        decisionTick = new WaitForSeconds(decisionTickRateInSeconds);
 
         if (root == null || myStack.currentDecision == null) return;
 
@@ -65,9 +68,9 @@ public class AIADS_Core : MonoBehaviour
             
             while(time < maxDecideDelay)
             {
-                GetDecision(myStack.currentDecision, myStack.count, time);
-                time += Time.deltaTime;
-                yield return null;
+                ActivateDecision(myStack.currentDecision, myStack.count, time);
+                yield return decisionTick;
+                time += decisionTickRateInSeconds;
             }
 
             ResetDecisions(myStack.currentDecision, myStack.count);
@@ -113,30 +116,47 @@ public class AIADS_Core : MonoBehaviour
     }
 
     #endregion
-    #endregion
-
-    #region RecursiveMethods
+    
 
     protected virtual void ResetDecisions(AIADS_Decision decision, int currentCount)
     {
-        if (decision == root || decision == null || currentCount <= 0) return;
+        for(int i = currentCount; i > 0; i--)
+        {
+            if (decision == root || decision == null) return;
 
-        decision.waitingForDecisionCall = true;
+            decision.waitingForDecisionCall = true;
 
-        ResetDecisions(decision.Parent, currentCount--);
+            decision = decision.Parent;
+        }
     }
 
-    protected virtual void GetDecision(AIADS_Decision decision, int currentCount, float time)
+    public virtual AIADS_Decision GetAIADSStackMemeber(AIADS_Decision parent, int currentCount, int totalRecurs)
     {
-        if (decision == root || decision == null || currentCount <= 0) return;
-
-        if (time >= decision.DecideDelay && decision.waitingForDecisionCall == true)
+        for (int i = currentCount; i > 0; i--)
         {
-            decision.waitingForDecisionCall = false;
-            decision.DoDecision(myStack.Blackboards[decision.BlackboardKey], this, recivers[decision.ReciverIndex]);
-        }
+            if (parent == root || parent == null) return null;
 
-        GetDecision(decision.Parent, currentCount--, time);
+            if (totalRecurs <= 0) return parent;
+
+            parent = parent.Parent;
+        }
+        return null; //This should never be returned!
+    }
+
+    protected virtual void ActivateDecision(AIADS_Decision decision, int currentCount, float time)
+    {
+        for (int i = currentCount; i > 0; i--)
+        {
+            if (decision == root || decision == null) return;
+
+            if (time >= decision.DecideDelay && decision.waitingForDecisionCall == true)
+            {
+                decision.waitingForDecisionCall = false;
+                decision.DoDecision(myStack.Blackboards[decision.BlackboardKey], this, recivers[decision.ReciverIndex]);
+            }
+
+            decision = decision.Parent;
+        }
     }
 
     protected virtual void GetDecisionScore()
