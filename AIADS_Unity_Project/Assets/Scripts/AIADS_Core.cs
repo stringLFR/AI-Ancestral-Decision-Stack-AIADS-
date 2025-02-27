@@ -1,4 +1,3 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -62,7 +61,7 @@ public class AIADS_Core : MonoBehaviour
         updateTick = new WaitForSeconds(updateTickRateInSeconds);
         decisionTick = new WaitForSeconds(decisionTickRateInSeconds);
 
-        if (root == null || myStack.currentDecision == null) return;
+        if (root == null || myStack.currentDecisionKey == null) return;
 
         loop = StartCoroutine(UpdateLoop());
     }
@@ -74,14 +73,14 @@ public class AIADS_Core : MonoBehaviour
     {
         GetDecisionScore();
 
-        if (myStack.currentDecision != null)
+        if (myStack.currentDecisionKey != null)
         {
             float time = 0;
             
             while(time < maxDecideDelay)
             {
                 //Check if a decision can be activated and set the waitingForDecisionCall to true!
-                ActivateDecision(myStack.currentDecision, myStack.count, time);
+                ActivateDecision(myStack.Decisions[myStack.currentDecisionKey], myStack.count, time);
 
                 //This makes a small break, then + in the amount of time waited into time!
                 yield return decisionTick;
@@ -89,7 +88,7 @@ public class AIADS_Core : MonoBehaviour
             }
 
             //Reset all decisions waitingForDecisionCall to false!
-            ResetDecisions(myStack.currentDecision, myStack.count);
+            ResetDecisions(myStack.Decisions[myStack.currentDecisionKey], myStack.count);
         }
 
         yield return updateTick;
@@ -98,13 +97,13 @@ public class AIADS_Core : MonoBehaviour
     //Switches target decision's parent to another one from the dictionary!
     public virtual void SwitchParentDecision(AIADS_Decision targetChildDecision, string newParentDecisionKey)
     {
-        AIADS_Decision grandParent = targetChildDecision.Parent.Parent;
+        string grandParent = myStack.Decisions[targetChildDecision.ParentKey].ParentKey;
 
-        targetChildDecision.Parent.Parent = null;
+        myStack.Decisions[targetChildDecision.ParentKey].ParentKey = null;
 
-        targetChildDecision.Parent = myStack.Decisions[newParentDecisionKey];
+        myStack.Decisions[targetChildDecision.Key].ParentKey = myStack.Decisions[newParentDecisionKey].Key;
 
-        targetChildDecision.Parent.Parent = grandParent;
+        myStack.Decisions[targetChildDecision.ParentKey].ParentKey = grandParent;
     }
 
     //Stops the updateLoop!
@@ -152,7 +151,7 @@ public class AIADS_Core : MonoBehaviour
 
             decision.waitingForDecisionCall = true;
 
-            decision = decision.Parent;
+            decision = myStack.Decisions[decision.ParentKey];
         }
     }
 
@@ -165,7 +164,7 @@ public class AIADS_Core : MonoBehaviour
 
             if (totalStepsBack <= 0) return parent;
 
-            parent = parent.Parent;
+            parent = myStack.Decisions[parent.ParentKey];
         }
         return null; //This should never be returned!
     }
@@ -182,7 +181,7 @@ public class AIADS_Core : MonoBehaviour
                 decision.DoDecision(myStack.Blackboards[decision.BlackboardKey], this, recivers[decision.ReciverIndex]);
             }
 
-            decision = decision.Parent;
+            decision = myStack.Decisions[decision.ParentKey];
         }
     }
 
@@ -191,7 +190,7 @@ public class AIADS_Core : MonoBehaviour
     {
         float bestScore = 0f;
         string bestDecision = null;
-        string[] decisionArray = myStack.currentDecision == null ? root.ChildDecisionsKeys : myStack.currentDecision.ChildDecisionsKeys;
+        string[] decisionArray = myStack.currentDecisionKey == null ? root.ChildDecisionsKeys : myStack.Decisions[myStack.currentDecisionKey].ChildDecisionsKeys;
 
         if (decisionArray != null)
         {
@@ -210,30 +209,30 @@ public class AIADS_Core : MonoBehaviour
             {
                 if (myStack.Decisions[bestDecision].MinumimScore < bestScore)
                 {
-                    myStack.Decisions[bestDecision].Parent = myStack.currentDecision == null ? root : myStack.currentDecision;
-                    myStack.currentDecision = myStack.Decisions[bestDecision];
+                    myStack.Decisions[bestDecision].ParentKey = myStack.currentDecisionKey == null ? root.Key : myStack.currentDecisionKey;
+                    myStack.currentDecisionKey = myStack.Decisions[bestDecision].Key;
                     myStack.count++;
 
                     //Makes a recursive call!
-                    if (myStack.currentDecision.ChildDecisionsKeys != null) GetDecisionScore();
+                    if (myStack.Decisions[myStack.currentDecisionKey].ChildDecisionsKeys != null) GetDecisionScore();
 
                     return;
                 }
             }
         }
 
-        if (myStack.currentDecision != null || myStack.currentDecision != root)
+        if (myStack.currentDecisionKey != null || myStack.currentDecisionKey != root.Key)
         {
-            float currentScore = myStack.currentDecision.GetCondition(myStack.Blackboards[myStack.currentDecision.BlackboardKey], this, gatherers[myStack.currentDecision.GathererIndex]);
+            float currentScore = myStack.Decisions[myStack.currentDecisionKey].GetCondition(myStack.Blackboards[myStack.Decisions[myStack.currentDecisionKey].BlackboardKey], this, gatherers[myStack.Decisions[myStack.currentDecisionKey].GathererIndex]);
 
-            if (myStack.currentDecision.MinumimScore > currentScore)
+            if (myStack.Decisions[myStack.currentDecisionKey].MinumimScore > currentScore)
             {
-                string formerCurrentKey = myStack.currentDecision.Key;
-                myStack.currentDecision = myStack.currentDecision.Parent;
+                string formerCurrentKey = myStack.currentDecisionKey;
+                myStack.currentDecisionKey = myStack.Decisions[myStack.currentDecisionKey].ParentKey;
                 myStack.count--;
-                myStack.Decisions[formerCurrentKey].Parent = null;
+                myStack.Decisions[formerCurrentKey].ParentKey = null;
 
-                if (myStack.currentDecision != null || myStack.currentDecision != root) GetDecisionScore();
+                if (myStack.currentDecisionKey != null || myStack.Decisions[myStack.currentDecisionKey] != root) GetDecisionScore();
             }
         }
     }
@@ -248,7 +247,7 @@ public class AIADS_Stack
 {
     public Dictionary<string, AIADS_Decision> Decisions;
     public Dictionary<string, AIADS_Blackboard> Blackboards;
-    public AIADS_Decision currentDecision;
+    public string currentDecisionKey;
     public int count = 0;
 }
 
@@ -280,7 +279,7 @@ public abstract class AIADS_Decision
     public float DecideDelay => decideDelay;
     public int ReciverIndex => reciverIndex;
     public int GathererIndex => gathererIndex;
-    public AIADS_Decision Parent;
+    public string ParentKey;
     public bool waitingForDecisionCall = true;
 
     public abstract float GetCondition(AIADS_Blackboard board, AIADS_Core core, AIADS_Info_Gatherer info);
