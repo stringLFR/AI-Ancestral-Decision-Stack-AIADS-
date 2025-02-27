@@ -1,21 +1,6 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
-#region Inferfaces
-
-//These interface can be used to create both decisions and blackborads!
-public interface IAIADS_Decision_Creator
-{
-    public AIADS_Decision CreateAIADSDecision(); 
-}
-
-public interface IAIADS_Blackboard_Creator
-{
-    public AIADS_Blackboard CreateAIADSBlackboard();
-}
-
-#endregion
 
 public class AIADS_Core : MonoBehaviour
 {
@@ -239,70 +224,3 @@ public class AIADS_Core : MonoBehaviour
 
     #endregion
 }
-
-#region OtherClasses
-
-//The stack structure which holds blackboards, decisions, currentDecision and count!
-public class AIADS_Stack
-{
-    public Dictionary<string, AIADS_Decision> Decisions;
-    public Dictionary<string, AIADS_Blackboard> Blackboards;
-    public string currentDecisionKey;
-    public int count = 0;
-}
-
-public abstract class AIADS_Decision
-{
-    //These can only be set by the constructor!!!
-    readonly protected string key, blackboardKey;
-    readonly protected string[] childDecisionsKeys;
-    readonly protected float minimumScore = 0f;
-    readonly protected float decideDelay = 0;
-    readonly protected int reciverIndex = 0;
-    readonly protected int gathererIndex = 0;
-
-    public AIADS_Decision(string keyValue, string blackboardValue, string[] childDecisionValues, float minimumScoreValue, int decideDelayValue, int reciverIndexValue, int gathererIndexValue)
-    {
-        key = keyValue;
-        blackboardKey = blackboardValue;
-        childDecisionsKeys = childDecisionValues;
-        minimumScore = minimumScoreValue;
-        decideDelay = decideDelayValue;
-        reciverIndex = reciverIndexValue;
-        gathererIndex = gathererIndexValue;
-    }
-
-    public string Key => key;
-    public string BlackboardKey => blackboardKey;
-    public string[] ChildDecisionsKeys => childDecisionsKeys;
-    public float MinumimScore => minimumScore;
-    public float DecideDelay => decideDelay;
-    public int ReciverIndex => reciverIndex;
-    public int GathererIndex => gathererIndex;
-    public string ParentKey;
-    public bool waitingForDecisionCall = true;
-
-    public abstract float GetCondition(AIADS_Blackboard board, AIADS_Core core, AIADS_Info_Gatherer info);
-    public abstract void DoDecision(AIADS_Blackboard board, AIADS_Core core, AIADS_Decision_Reciver reciver);
-}
-
-//AIADS_Root Does not need to have any functionality other than storing the child decision keys! But you can always modify :D
-public class AIADS_Root : AIADS_Decision
-{
-    public AIADS_Root(string keyValue, string blackboardValue, string[] childDecisionValues, float minimumScoreValue, int decideDelayValue, int reciverIndexValue, int gathererIndexValue) : base(keyValue, blackboardValue, childDecisionValues, minimumScoreValue, decideDelayValue, reciverIndexValue, gathererIndexValue)
-    {
-    }
-
-    public override void DoDecision(AIADS_Blackboard board, AIADS_Core core, AIADS_Decision_Reciver reciver) => throw new System.NotImplementedException();
-    public override float GetCondition(AIADS_Blackboard board, AIADS_Core core, AIADS_Info_Gatherer info) => throw new System.NotImplementedException();
-}
-
-public abstract class AIADS_Blackboard
-{
-    //This can only be set by the constructor!!!
-    readonly string key;
-    public AIADS_Blackboard(string k) => key = k;
-    public string Key => key;
-}
-
-#endregion
