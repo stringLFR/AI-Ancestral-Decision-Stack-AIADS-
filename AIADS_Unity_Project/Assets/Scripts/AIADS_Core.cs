@@ -10,10 +10,10 @@ public class AIADS_Core : MonoBehaviour
     [SerializeField] protected AIADS_Decision_Reciver[] recivers;
     [SerializeField] protected AIADS_Info_Gatherer[] gatherers;
 
-    //These floats handle update loop ticks and current max decide delay!
+    //These floats handle update loop ticks and amount of decision triggers in one update loop!
     [SerializeField] protected float updateTickRateInSeconds = 1f;
     [SerializeField] protected float decisionTickRateInSeconds = 1f;
-    [SerializeField] protected float maxDecideDelay = 1f;
+    [SerializeField] protected int maxDecideTriggers = 1;
 
     //These are the constructor settings for the root decision! Here you can set up initial children decisions in childDecisionsKeyValues!
     [Header("AIADS_Decision_Root_Stats")]
@@ -22,10 +22,13 @@ public class AIADS_Core : MonoBehaviour
     [SerializeField] protected float minimumScoreValue;
     [SerializeField] protected int decideDelayValue,reciverIndexValue,gathererIndexValue;
 
+    [Header("Max alowed stack size!")]
+    [SerializeField] int maxCount = 20;
+
     #endregion
 
     //The stack like container for decisons. It also stores all blackboards!
-    protected AIADS_Stack myStack = new AIADS_Stack();
+    protected AIADS_Stack myStack;
 
     protected AIADS_Decision root;
 
@@ -34,10 +37,15 @@ public class AIADS_Core : MonoBehaviour
     protected WaitForSeconds updateTick;
     protected WaitForSeconds decisionTick;
 
+    public AIADS_Stack MyStack => myStack;
+    public AIADS_Decision_Reciver[] Recivers => recivers;
+    public AIADS_Info_Gatherer[] Gatherers => gatherers;
+
     //Creates the root!
     protected virtual void Awake()
     {
         root = new AIADS_Root(keyValue, blackboardKeyValue, childDecisionsKeyValues, minimumScoreValue, decideDelayValue, reciverIndexValue, gathererIndexValue);
+        myStack = new AIADS_Stack(maxCount);
     }
 
     //Starts the update corutine!
@@ -60,20 +68,15 @@ public class AIADS_Core : MonoBehaviour
 
         if (myStack.currentDecisionKey != null)
         {
-            float time = 0;
+            int triggers = 0;
             
-            while(time < maxDecideDelay)
+            while(triggers < maxDecideTriggers)
             {
-                //Check if a decision can be activated and set the waitingForDecisionCall to true!
-                ActivateDecision(myStack.Decisions[myStack.currentDecisionKey], myStack.count, time);
+                ActivateDecision(myStack.Decisions[myStack.currentDecisionKey]);
 
-                //This makes a small break, then + in the amount of time waited into time!
                 yield return decisionTick;
-                time += decisionTickRateInSeconds;
+                triggers++;
             }
-
-            //Reset all decisions waitingForDecisionCall to false!
-            ResetDecisions(myStack.Decisions[myStack.currentDecisionKey], myStack.count);
         }
 
         yield return updateTick;
@@ -127,18 +130,6 @@ public class AIADS_Core : MonoBehaviour
         loop = StartCoroutine(UpdateLoop());
     }
     #endregion
-    
-    protected virtual void ResetDecisions(AIADS_Decision decision, int currentCount)
-    {
-        for(int i = currentCount; i > 0; i--)
-        {
-            if (decision == root || decision == null) return;
-
-            decision.waitingForDecisionCall = true;
-
-            decision = myStack.Decisions[decision.ParentKey];
-        }
-    }
 
     //Based on totalStepsBack, will go back through the parent chain in the stack strucutre and return a parent decision!
     public virtual AIADS_Decision GetAIADSStackMemeber(AIADS_Decision parent, int currentCount, int totalStepsBack)
@@ -154,20 +145,27 @@ public class AIADS_Core : MonoBehaviour
         return null; //This should never be returned!
     }
 
-    protected virtual void ActivateDecision(AIADS_Decision decision, int currentCount, float time)
+    protected virtual void ActivateDecision(AIADS_Decision decision)
     {
-        for (int i = currentCount; i > 0; i--)
+        if (decision == root || decision == null) return;
+
+        int parentAmount = myStack.count - 1;
+        string[] parents = new string[parentAmount];
+        string[] parentBoards = new string[parentAmount];
+
+        string currentParentKey = decision.ParentKey;
+        int index = 0;
+
+        for (int i = parentAmount; i != 0; i--)
         {
-            if (decision == root || decision == null) return;
-
-            if (time >= decision.DecideDelay && decision.waitingForDecisionCall == true)
-            {
-                decision.waitingForDecisionCall = false;
-                decision.DoDecision(myStack.Blackboards[decision.BlackboardKey], this, recivers[decision.ReciverIndex]);
-            }
-
-            decision = myStack.Decisions[decision.ParentKey];
+            parents[index] = currentParentKey;
+            parentBoards[index] = myStack.Decisions[currentParentKey].BlackboardKey;
+            index++;
+            currentParentKey = myStack.Decisions[currentParentKey].ParentKey;
         }
+
+        decision.InheritFromParents(parents, parentBoards, this);
+        decision.DoDecision(myStack.Blackboards[decision.BlackboardKey], this, recivers[decision.ReciverIndex]);
     }
 
     //This methods checks which decisions can be added to the stack strucutre! Any child decision takes priority before the method checks currentDecision!
@@ -199,7 +197,7 @@ public class AIADS_Core : MonoBehaviour
                     myStack.count++;
 
                     //Makes a recursive call!
-                    if (myStack.Decisions[myStack.currentDecisionKey].ChildDecisionsKeys != null) GetDecisionScore();
+                    if (myStack.Decisions[myStack.currentDecisionKey].ChildDecisionsKeys != null || myStack.MaxCount <= myStack.count) GetDecisionScore();
 
                     return;
                 }

@@ -1,4 +1,6 @@
-﻿public abstract class AIADS_Decision
+﻿
+
+public abstract class AIADS_Decision
 {
     //These can only be set by the constructor!!!
     readonly protected string key, blackboardKey;
@@ -27,8 +29,9 @@
     public int ReciverIndex => reciverIndex;
     public int GathererIndex => gathererIndex;
     public string ParentKey;
-    public bool waitingForDecisionCall = true;
 
     public abstract float GetCondition(AIADS_Blackboard board, AIADS_Core core, AIADS_Info_Gatherer info);
     public abstract void DoDecision(AIADS_Blackboard board, AIADS_Core core, AIADS_Decision_Reciver reciver);
+
+    public abstract void InheritFromParents(string[] parentKeyChain, string[] parentBoardChain, AIADS_Core core);
 }
