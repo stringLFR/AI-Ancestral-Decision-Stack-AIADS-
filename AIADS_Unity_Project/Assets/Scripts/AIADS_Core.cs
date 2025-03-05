@@ -195,6 +195,7 @@ public class AIADS_Core : MonoBehaviour
                     myStack.Decisions[bestDecision].ParentKey = myStack.currentDecisionKey == null ? root.Key : myStack.currentDecisionKey;
                     myStack.currentDecisionKey = myStack.Decisions[bestDecision].Key;
                     myStack.count++;
+                    myStack.Decisions[bestDecision].WhenPushedOnStack(myStack.Blackboards[myStack.Decisions[bestDecision].BlackboardKey], this);
 
                     //Makes a recursive call!
                     if (myStack.Decisions[myStack.currentDecisionKey].ChildDecisionsKeys != null || myStack.MaxCount <= myStack.count) GetDecisionScore();
@@ -210,6 +211,7 @@ public class AIADS_Core : MonoBehaviour
 
             if (myStack.Decisions[myStack.currentDecisionKey].MinumimScore > currentScore)
             {
+                myStack.Decisions[myStack.currentDecisionKey].WhenPoppedFromStack(myStack.Blackboards[myStack.Decisions[myStack.currentDecisionKey].BlackboardKey], this);
                 string formerCurrentKey = myStack.currentDecisionKey;
                 myStack.currentDecisionKey = myStack.Decisions[myStack.currentDecisionKey].ParentKey;
                 myStack.count--;

@@ -8,6 +8,7 @@ public class AIADS_Root : AIADS_Decision
 
     public override void DoDecision(AIADS_Blackboard board, AIADS_Core core, AIADS_Decision_Reciver reciver) => throw new System.NotImplementedException();
     public override float GetCondition(AIADS_Blackboard board, AIADS_Core core, AIADS_Info_Gatherer info) => throw new System.NotImplementedException();
-
     public override void InheritFromParents(string[] parentKeyChain, string[] parentBoardChain, AIADS_Core core) => throw new System.NotImplementedException();
+    public override void WhenPoppedFromStack(AIADS_Blackboard board, AIADS_Core core) => throw new System.NotImplementedException();
+    public override void WhenPushedOnStack(AIADS_Blackboard board, AIADS_Core core) => throw new System.NotImplementedException();
 }
